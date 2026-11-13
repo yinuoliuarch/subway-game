@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commute · Student Level Demo</title>
+<style>
+:root{--ink:#efe6d2;--dim:#8f8c80;--red:#ee352e;--grey:#a7a9ac;--green:#62d26f;--amber:#f2b84b;--H:min(calc((100vw - 24px) / 2.4), calc(100vh - 190px))}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0b0c0e;color:var(--ink);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+body{display:flex;align-items:center;justify-content:center}
+#game{display:flex;flex-direction:column;border:4px solid #000;background:#000;position:relative}
+button{font:inherit;cursor:pointer}
+.pix{font-weight:700;border:4px solid #000;box-shadow:inset -4px -4px 0 rgba(0,0,0,.35),inset 4px 4px 0 rgba(255,255,255,.25)}
+/* route strip */
+#strip{position:relative;height:86px;background:#16181b;border-bottom:4px solid #000}
+#strip .ln{position:absolute;top:34px;height:8px}
+#strip .dot{position:absolute;top:31px;width:14px;height:14px;margin-left:-7px;background:#fff;border:3px solid #222}
+#strip .dot.x{width:20px;height:20px;top:28px;margin-left:-10px;border-width:4px}
+#strip .dot.dest{background:#3b82f6;border-color:#cfe0ff}
+#strip .dim{opacity:.22}
+#strip .lab{position:absolute;top:52px;transform:translateX(-50%);font-size:10px;color:#cfc9b6;white-space:nowrap}
+#strip .lab.next{color:var(--amber);font-weight:700}#strip .lab.x{font-weight:700}
+#me{position:absolute;top:6px;margin-left:-12px;width:24px;height:18px;background:var(--amber);clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%);transition:left .25s linear;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{filter:brightness(.6)}}
+#stripNote{position:absolute;left:50%;transform:translateX(-50%);top:4px;font-size:11px;color:var(--amber);white-space:nowrap}
+#stripTitle{position:absolute;left:10px;top:4px;font-size:11px;color:var(--dim)}
+/* main */
+#main{display:flex;height:var(--H);position:relative}
+#stage{position:relative;height:100%;aspect-ratio:16/9;overflow:hidden;background:#000}
+.ov{position:absolute}.pe{pointer-events:none}
+#view{inset:0;background:#05070a}
+#view.station{background:repeating-linear-gradient(0deg,#d9d2ba 0 18px,#bdb59c 18px 19px),#d9d2ba}
+#view .sn{position:absolute;top:36%;background:#141414;color:#fff;padding:.4% 1.2%;font-size:clamp(9px,1.1vw,14px);border:3px solid #7a5a2a;white-space:nowrap}
+.streak{position:absolute;height:3%;width:16%;background:rgba(230,240,200,.8);animation:run .45s linear infinite}
+@keyframes run{from{left:105%}to{left:-20%}}
+#car{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#cool{inset:0;background:rgba(20,40,80,.28);transition:opacity .5s}
+.spr{position:absolute;image-rendering:pixelated}
+#plat{inset:0;display:none;background:linear-gradient(#0000 0 66%,#2a2a2a 66% 68%,#e8c21a 68% 70%,#6b675f 70% 100%),repeating-linear-gradient(0deg,#d8d1b9 0 22px,#bdb59c 22px 23px)}
+#plat .sign{position:absolute;top:9%;left:20%;width:60%;background:#151515;color:#fff;text-align:center;padding:1.6% 0;font-size:clamp(14px,2.3vw,30px);border:4px solid #8a6a32}
+#trainband{position:absolute;left:-110%;top:30%;height:36%;width:100%;background:linear-gradient(#a9acaf,#6f7276);border-top:3px solid #d0d2d4;transition:left .45s ease-out;display:flex;align-items:center;gap:3%;padding-left:5%}
+#trainband.on{left:0}#trainband .w{width:9%;height:42%;background:#20262c;border:2px solid #4a4e52}
+.bullet{display:inline-flex;align-items:center;justify-content:center;width:1.7em;height:1.7em;border-radius:50%;background:var(--red);color:#fff;font-weight:700;font-family:Helvetica,Arial,sans-serif;flex:none}
+.bullet.L{background:var(--grey)}
+#trainband .bullet{font-size:clamp(14px,2.3vw,28px)}
+#cd{right:2.5%;top:24%;width:30%;background:#050505;border:4px solid #333;padding:8px 10px;color:#ffb000;font-size:clamp(9px,1.05vw,13px);line-height:1.7;display:none}
+#cd .h{color:#7a6a40;font-size:.85em}
+#hud{left:2%;top:3%;background:rgba(0,0,0,.72);padding:5px 10px;font-size:clamp(10px,1.1vw,14px);border-left:4px solid var(--red)}
+#evdim{inset:0;background:rgba(0,0,0,.3);opacity:0;transition:opacity .4s}
+#evdim.on{opacity:1;animation:flick 2.2s steps(1) infinite}
+@keyframes flick{0%{opacity:1}6%{opacity:.4}9%{opacity:1}60%{opacity:.85}63%{opacity:1}}
+#toast{left:50%;top:12%;transform:translateX(-50%);background:#0d0d0d;border:3px solid var(--amber);color:var(--amber);padding:8px 14px;font-size:clamp(10px,1.2vw,15px);max-width:70%;text-align:center;opacity:0;transition:opacity .3s}
+#toast.on{opacity:1}
+/* phone */
+#phoneWrap{height:100%;aspect-ratio:2/3;position:relative;background:#0f1012}
+#phoneImg{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#scr{position:absolute;left:13.2%;top:7.5%;width:73.2%;height:87.2%;overflow:hidden}
+#ptime{position:absolute;left:3%;top:.8%;width:20%;height:4.6%;background:#26313f;color:#f3e3c3;font-weight:700;font-size:clamp(10px,1.1vw,14px);display:flex;align-items:center}
+#nosvc{position:absolute;left:68%;top:1%;width:28%;height:4.4%;background:#26313f;color:#ff6b5e;font-size:clamp(8px,.85vw,11px);font-weight:700;display:none;align-items:center;justify-content:flex-end}
+.hot{position:absolute;cursor:pointer}
+.hot:hover{outline:3px solid var(--amber)}
+.badge{position:absolute;right:-4px;top:-4px;background:#e5372c;color:#fff;border:2px solid #000;font-size:11px;font-weight:700;padding:0 5px;pointer-events:none}
+#app{position:absolute;inset:0;background:#efe6d2;color:#1f2733;display:none;flex-direction:column;font-size:clamp(9px,.95vw,12px);line-height:1.45}
+#app .top{background:#2a3546;color:#efe6d2;padding:7% 4% 3%;display:flex;align-items:center;gap:6px;font-weight:700}
+#app .top .bk{cursor:pointer;color:var(--amber)}
+#app .body{flex:1;overflow:auto;padding:4%}
+.blk{background:#fff;border:2px solid #2a3546;padding:6px 7px;margin-bottom:6px}
+.blk h4{margin:0 0 3px;font-size:1.05em}
+.mut{color:#6d6a62}
+.pbtn{display:block;width:100%;border:3px solid #000;padding:6px;font-weight:700;background:#f2b84b;color:#111;margin-top:6px}
+.pbtn:disabled{background:#cfc8b6;color:#888}
+.pb{height:6px;background:#d9d1bd;margin-top:5px}.pb i{display:block;height:100%;background:#e08a1e}.pb.ok i{background:#2fa84f}
+.opt{display:block;width:100%;text-align:left;border:2px solid #b9b19c;background:#faf7ef;padding:4px 6px;margin-top:4px}
+.opt.sel{border-color:#2a6cd6;background:#e2ecff}
+.bub{max-width:85%;padding:5px 8px;margin:5px 0;border:2px solid #2a3546;background:#fff}
+.bub.out{margin-left:auto;background:#7e9a6e;color:#fff}
+.bub .m{font-size:.8em;opacity:.65}
+.chip{display:inline-block;border:2px solid #2a3546;background:#fff;padding:3px 6px;margin:3px 3px 0 0;cursor:pointer}
+.alert{background:#fff2d6;border:2px solid #c0392b;padding:5px 7px;margin-bottom:6px}
+#notif{position:absolute;left:4%;right:4%;top:-40%;padding-right:22px!important;background:#efe6d2;color:#1f2733;border:3px solid #000;padding:6px 8px;font-size:clamp(9px,.95vw,12px);transition:top .3s;cursor:pointer;z-index:3}
+#notif.on{top:7%}#notif .x{position:absolute;right:4px;top:2px;cursor:pointer;font-weight:700;padding:0 4px}#notif b{display:block;color:#6d6a62}
+/* bottom bar */
+#bar{display:flex;align-items:stretch;gap:10px;background:#16181b;border-top:4px solid #000;padding:8px 10px;height:74px}
+#pauseBtn{width:120px;background:#2d3238;color:var(--ink);font-size:16px}
+#pauseBtn.paused{background:var(--green);color:#111}
+#acts{flex:1;display:flex;gap:8px;align-items:stretch}
+#acts button{flex:1;font-size:clamp(11px,1.15vw,15px);padding:0 10px;display:flex;align-items:center;justify-content:center;gap:8px;background:#2d3238;color:#777}
+#acts button.live{background:var(--amber);color:#111;animation:pulse 1s steps(2) infinite}
+#acts button.soft{background:#3a4048;color:var(--ink)}
+@keyframes pulse{50%{background:#ffd27a}}
+#acts .msg{flex:1;display:flex;align-items:center;color:var(--dim);font-size:13px;padding:0 8px}
+#clockBox{width:200px;font-size:13px;display:flex;flex-direction:column;justify-content:center}
+#clockBox .bar2{height:8px;background:#333;margin-top:5px}#clockBox .bar2 i{display:block;height:100%}
+/* popups */
+#pop{position:absolute;inset:0;background:rgba(0,0,0,.82);z-index:15;display:none;align-items:center;justify-content:center}
+#pop .box{width:min(520px,80%);background:#17191d;border:4px solid var(--amber);padding:18px 20px;line-height:1.55}
+#pop .k{font-size:11px;color:var(--amber);letter-spacing:2px}
+#pop h3{margin:4px 0 8px;font-size:19px}
+#pop .data{font-size:12px;color:#b8b2a2;border-top:1px dashed #444;margin-top:10px;padding-top:8px}
+#pop .row{display:flex;gap:8px;margin-top:14px}
+#pop .row button{flex:1;padding:10px;background:#2d3238;color:var(--ink);font-size:14px}
+#pop .row button.go{background:var(--amber);color:#111}
+#pop .tbar{height:8px;background:#333;margin-top:12px}#pop .tbar i{display:block;height:100%;background:var(--amber);width:100%}
+#pop .tl{font-size:11px;color:var(--dim);margin-top:4px}
+#full{position:absolute;inset:0;background:rgba(8,9,11,.95);z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}
+#full .c{max-width:720px;width:100%;max-height:100%;overflow:auto;background:#17191d;border:4px solid #3a3f47;padding:22px 26px;line-height:1.6}
+#full h1{margin:0 0 6px;font-size:22px}#full h2{margin:16px 0 6px;font-size:13px;color:var(--amber);letter-spacing:2px}
+.cmp{display:flex;gap:12px}.cmp>div{flex:1;border:2px solid #3a3f47;padding:10px;text-align:center}
+.cmp .n{font-size:28px;font-weight:700}
+.late{color:#ff6b5e}.ontime{color:var(--green)}.small{font-size:12px;color:var(--dim)}
+.go2{display:block;width:100%;margin-top:12px;padding:12px;background:var(--amber);color:#111;font-size:15px}
+.go2.alt{background:#2d3238;color:var(--ink)}
+#coach{position:absolute;inset:0;z-index:40;display:none}
+#hole{position:absolute;border:3px solid var(--amber);box-shadow:0 0 0 9999px rgba(0,0,0,.72);transition:all .3s;pointer-events:none}
+#bub{position:absolute;width:310px;background:#17191d;border:3px solid var(--amber);padding:12px 14px;font-size:13px;line-height:1.55}
+#bub .k{color:var(--amber);font-size:11px;margin-bottom:4px}
+#bub .row{display:flex;justify-content:space-between;margin-top:10px;gap:6px}
+#bub button{font-size:12px;background:#2d3238;color:var(--ink);border:2px solid #444;padding:5px 9px}
+#bub button.hotb{background:var(--amber);color:#111;border-color:#000}
+</style>
+</head>
+<body>
+<div id="game">
+ <div id="strip"><div id="stripTitle">L → transfer at 14 St → 1/2/3 uptown</div><div id="stripNote"></div><div id="me"></div></div>
+ <div id="main">
+  <div id="stage">
+   <div id="view" class="ov pe"></div>
+   <img id="car" src="carL.png" alt="">
+   <img id="pWoman" class="spr pe" src="p_woman.png" alt="" style="left:83%;bottom:9%;height:41%">
+   <img id="pMan" class="spr pe" src="p_man.png" alt="" style="left:2%;bottom:5%;height:56%">
+   <img id="pHero" class="spr pe" src="p_hero.png" alt="" style="left:26%;bottom:9%;height:44.6%">
+   <img id="pCrowd" class="spr pe" src="crowd.png" alt="" style="left:-5%;bottom:-8%;width:110%;display:none">
+   <div id="cool" class="ov pe"></div>
+   <div id="plat" class="ov pe"><div class="sign" id="platName"></div><div id="trainband"><span class="bullet" id="tbB">1</span><span class="w"></span><span class="w"></span><span class="w"></span><span class="w"></span></div><img id="platCrowd" class="spr" src="crowd.png" alt="" style="left:6%;bottom:-2%;width:70%"><img id="platHero" class="spr" src="p_hero_stand.png" alt="" style="left:38%;bottom:3%;height:60%"><img id="platMan" class="spr" src="p_man.png" alt="" style="left:64%;bottom:3%;height:60%"></div>
+   <div id="cd" class="ov pe"></div>
+   <div id="evdim" class="ov pe"></div>
+   <div id="hud" class="ov pe"></div>
+   <div id="toast" class="ov pe"></div>
+  </div>
+  <div id="phoneWrap">
+   <img id="phoneImg" src="phone.png" alt="">
+   <div id="scr">
+    <div id="ptime">2:50</div><div id="nosvc">NO SERVICE</div>
+    <div class="hot" data-app="canvas" style="left:6%;top:9.7%;width:24.4%;height:17.5%"><span class="badge" id="bCanvas" style="display:none"></span></div>
+    <div class="hot" data-app="msg" style="left:38.4%;top:9.7%;width:24.4%;height:17.5%"><span class="badge" id="bMsg">1</span></div>
+    <div class="hot" data-app="mail" style="left:70.3%;top:9.7%;width:24.4%;height:17.5%"><span class="badge" id="bMail" style="display:none"></span></div>
+    <div class="hot" data-app="notes" style="left:6%;top:31.6%;width:24.4%;height:17.3%"><span class="badge" id="bNotes"></span></div>
+    <div class="hot" data-app="maps" style="left:38.4%;top:31.6%;width:24.4%;height:17.3%"><span class="badge" id="bMaps" style="display:none">!</span></div>
+    <div id="app"><div class="top"><span class="bk" id="bk">‹ Home</span><span id="appT"></span></div><div class="body" id="appB"></div></div>
+    <div id="notif"></div>
+   </div>
+  </div>
+  <div id="pop"><div class="box" id="popBox"></div></div>
+ </div>
+ <div id="bar">
+  <button id="pauseBtn" class="pix">❚❚ PAUSE</button>
+  <div id="acts"></div>
+  <div id="clockBox"><div id="clkT"></div><div class="bar2"><i id="clkB"></i></div></div>
+ </div>
+ <div id="full"></div>
+ <div id="coach"><div id="hole"></div><div id="bub"></div></div>
+</div>
+<script>
+// Data: MTA Subway Schedules 2026 (Wed 2026-08-12) · MTA Service Alerts Oct 2025–Sep 2026 (where/what) · NYC 311 rat complaints · MTA hourly ridership.
+const T=(h,m,s=0)=>h*3600+m*60+s;
+const START=T(14,50),DEADLINE=T(15,30),HARD=T(15,50),DWELL=30,GOOGLE=T(15,28);
+const STRIP=[['1 Av','L'],['3 Av','L'],['Union Sq','L'],['14 St','X'],['18 St'],['23 St'],['28 St'],['34 St','X'],['Times Sq','X'],['50 St'],['59 St'],['66 St'],['72 St','X'],['79 St'],['86 St'],['96 St','X'],['103 St'],['110 St'],['116 St','D']];
+const L_STOPS=[['1 Av',0,0],['3 Av',60,1],['14 St–Union Sq',120,2],['6 Av (to 14 St 1/2/3)',210,3]];
+const LOCAL=[['14 St',0,3],['18 St',1,4],['23 St',2,5],['28 St',3.5,6],['34 St–Penn',4.5,7],['Times Sq–42 St',6.5,8],['50 St',8.5,9],['59 St–Columbus Circle',10,10],['66 St–Lincoln Center',11.5,11],['72 St',13,12],['79 St',14.5,13],['86 St',16,14],['96 St',18.5,15],['103 St',20,16],['110 St–Cathedral Pkwy',21,17],['116 St–Columbia',22,18]];
+const EXPR=[['14 St',0,3],['34 St–Penn',2.5,7],['Times Sq–42 St',4,8],['72 St',8.5,12],['96 St',11.5,15],['110 St–Central Park North',16.5,15.9]];
+const XSTOP=new Set(['14 St','34 St–Penn','Times Sq–42 St','72 St','96 St']);
+const CROWDED=new Set(['14 St','Times Sq–42 St','34 St–Penn','96 St','1 Av']);
+const EV={'3 Av':{m:2,p:2,t:12,s:1},'14 St–Union Sq':{m:8,p:6,t:9,s:2},'18 St':{t:8},'23 St':{m:1,p:2,t:6,s:1},'28 St':{m:2,p:2,t:7},'34 St–Penn':{m:21,p:17,t:29,s:2},'Times Sq–42 St':{m:27,p:37,t:71,s:9},'50 St':{m:4,p:2,t:13},'59 St–Columbus Circle':{m:4,p:11,t:11,s:1},'66 St–Lincoln Center':{p:2,t:5},'72 St':{m:15,p:11,t:44,s:2},'79 St':{m:2,p:1,t:13,s:1},'86 St':{m:4,p:5,t:6,s:2},'96 St':{m:30,p:41,t:58,s:15},'103 St':{m:3,p:1,t:10,s:2},'110 St–Cathedral Pkwy':{m:4,p:13,t:20,s:3}};
+const EVNAME={m:'medical emergency',p:'police / disruptive person',t:'train problem',s:'signal problem'};
+const EVTXT={m:'We have a customer who needs medical help at this station. Please stand by.',p:'NYPD is responding to a disruptive person. We are holding here.',t:'We are holding while crews fix a door problem on this train.',s:'Signal problem ahead. We are being held in the tunnel.'};
+const RAT={'72 St':.3,'96 St':.22,'110 St–Cathedral Pkwy':.15};
+const DELAY_P=.30;
+const READING=['In October 1904, New York opened its first subway line: from City Hall, past Grand Central and Times Square, then up Broadway to 145th Street. The uptown stretch of today\'s 1 train is part of that original line.','New York is one of the few systems with four tracks: two in the middle for express trains, two outside for locals. That is why many express stops let you switch trains just by crossing the platform.','Express is not always faster. Locals run about every 6 minutes. If your express reaches the transfer station just after a local leaves, all the time you saved is spent waiting.'];
+const QUIZ=[['When did New York\'s first subway line open?',['1904','1925','1898'],0],['Why can you often switch express/local on the same platform?',['Four tracks: both stop side by side','They are the same train','The platforms are extra long'],0],['What can happen to the time you save on an express?',['You lose it waiting for the local','You always keep all of it','It makes the local faster'],0]];
+const DUR={download:2.5,read:6,submit:1.5,send:1.2};
+let G,trains;
+const $=id=>document.getElementById(id);
+const hm=t=>{if(!isFinite(t))return '—';t=Math.floor(t);let h=Math.floor(t/3600)%12||12;return h+':'+String(Math.floor(t%3600/60)).padStart(2,'0')};
+const wpick=o=>{const e=Object.entries(o).filter(([k,v])=>v>0);let r=Math.random()*e.reduce((a,[,v])=>a+v,0);for(const [k,v] of e){r-=v;if(r<0)return k}return e[0][0]};
+const tname=tr=>tr.line==='L'?'L train':tr.line+' '+(tr.type==='express'?'Express':'Local');
+function mk(line,type,dep0,stops){return {id:line+'_'+dep0,line,type,stops:stops.map(([n,o,si])=>{const dep=dep0+(type==='L'?o:o*60);return {name:n,si,arr:dep-DWELL,dep}}),rolled:false,ev:null}}
+function build(){const ts=[];
+ [T(14,45,30),T(14,53,30),T(15,1,30),T(15,9,30),T(15,17,30),T(15,25,30)].forEach(d=>ts.push(mk('L','L',d,L_STOPS)));
+ for(let k=-3;k<=8;k++)ts.push(mk('1','local',T(15,0)+k*360,LOCAL));
+ [[T(14,51),'3'],[T(14,55,30),'2'],[T(14,59),'3'],[T(15,3,30),'2'],[T(15,7),'3'],[T(15,11,30),'2'],[T(15,14,30),'3'],[T(15,19),'2'],[T(15,22,30),'3'],[T(15,27),'2'],[T(15,30,30),'3'],[T(15,35),'2']].forEach(([d,l])=>ts.push(mk(l,'express',d,EXPR)));
+ return ts}
+function newGame(){
+ trains=build();
+ G={now:START,paused:true,modal:false,mode:'platform',station:'1 Av',stationSi:0,train:null,walkUntil:0,walkTo:null,
+  dl:false,parts:0,answers:[null,null,null],submitted:false,submitAt:null,quizDeadline:null,
+  chat:[{text:'Are you presenting first today?',t:START}],draft:null,sent:false,replied:false,
+  mail:[{from:'Prof. Rivera',sub:'Reminder',text:'Class today at 3:30 PM, Avery Hall. Reading + quiz are on Canvas.',t:START}],
+  queue:[{t:T(15,4),kind:'chat',text:'Where are you? Prof is already here.'},{t:T(15,8),kind:'mail',text:'Today\'s quiz is now due at 3:25 PM. No late submissions.'}],
+  unread:{msg:1,mail:1},mapsSeen:0,usedEv:new Set(),action:null,ratWall:0,crowd:false,crowdDone:false,rat:null,evs:[],slowUntil:0,reported:0,
+  letGo:[],present:new Set(),asked:new Set(),firstTask:null,done:[],partsAtQuiz:null,platformNet:0,rodeExpress:false,transfers:0,prevLine:null,
+  lastKey:'',app:null,openedMaps:false,overshoot:false,arrival:null,ended:false,rk:''};
+ drawStrip();render(true);intro();
+}
+// ---- schedule helpers ----
+function tp(tr){const st=tr.stops;for(let i=0;i<st.length;i++){if(G.now<st[i].dep)return {i,at:G.now>=st[i].arr}}return {i:st.length-1,at:true}}
+function net(){return G.mode!=='train'||tp(G.train).at}
+function present(){return trains.filter(tr=>tr.stops.some((s,i)=>s.name===G.station&&G.now>=s.arr&&G.now<s.dep&&i<tr.stops.length-1))}
+function upcoming(){const o=[];trains.forEach(tr=>tr.stops.forEach((s,i)=>{if(s.name===G.station&&s.dep>G.now&&i<tr.stops.length-1)o.push({tr,s})}));return o.sort((a,b)=>a.s.arr-b.s.arr).slice(0,4)}
+const stopOf=(tr,n)=>tr.stops.find(s=>s.name===n);
+function nextAt(type,st,t){let b=null;trains.forEach(tr=>{if(tr.type!==type)return;const i=tr.stops.findIndex(s=>s.name===st);if(i<0||i===tr.stops.length-1)return;const s=tr.stops[i];if(s.dep>=t&&(!b||s.dep<b.s.dep))b={tr,s}});return b}
+function etaFrom(st,t){let best=Infinity;const l=nextAt('local',st,t);if(l)best=stopOf(l.tr,'116 St–Columbia').arr;
+ if(XSTOP.has(st)&&st!=='96 St'){const x=nextAt('express',st,t);if(x){const l2=nextAt('local','96 St',stopOf(x.tr,'96 St').arr+30);if(l2)best=Math.min(best,stopOf(l2.tr,'116 St–Columbia').arr)}}return best+360}
+function eta(){
+ if(G.mode==='walk')return G.walkTo==='Avery'?G.walkUntil:etaFrom('14 St',G.walkUntil);
+ if(G.mode==='end')return G.arrival;
+ if(G.mode==='platform'){if(G.station==='1 Av'||G.station==='3 Av'||G.station==='14 St–Union Sq'){const n=nextAt('L',G.station,G.now);return n?etaFrom('14 St',n.tr.stops[3].arr+240):Infinity}return etaFrom(G.station,G.now)}
+ const tr=G.train;if(tr.type==='L')return etaFrom('14 St',tr.stops[3].arr+240);
+ if(tr.type==='local')return stopOf(tr,'116 St–Columbia').arr+360;
+ const p=tp(tr),i96=tr.stops.findIndex(s=>s.name==='96 St');if(p.i>i96)return stopOf(tr,'110 St–Central Park North').arr+1200;
+ const l2=nextAt('local','96 St',tr.stops[i96].arr+30);return l2?stopOf(l2.tr,'116 St–Columbia').arr+360:Infinity}
+// ---- pacing: seconds of real time per second on screen ----
+function rate(){
+ if(G.now<G.slowUntil)return 10;
+ if(G.mode==='platform')return present().length?4:16;
+ if(G.mode==='walk')return 24;
+ return tp(G.train).at?4:20;
+}
+function roll(tr,from){
+ if(tr.rolled)return;tr.rolled=true;if(Math.random()>=DELAY_P)return;
+ const W=n=>Object.fromEntries(Object.entries(EV[n]||{}).filter(([k])=>k!=='m'&&!G.usedEv.has(k)));
+ const cand={};tr.stops.forEach((s,i)=>{if(i>from&&i<tr.stops.length-1){const v=Object.values(W(s.name)).reduce((a,b)=>a+b,0);if(v)cand[i]=v}});
+ if(!Object.keys(cand).length)return;
+ const di=+wpick(cand),st=tr.stops[di],c=wpick(W(st.name));G.usedEv.add(c);const D=300+Math.floor(Math.random()*241),kind=c==='s'?'tunnel':'station';
+ tr.ev={di,c,D,kind,station:st.name,shown:false};
+ tr.stops.forEach((s,i)=>{if(kind==='station'){if(i===di)s.dep+=D;else if(i>di){s.arr+=D;s.dep+=D}}else if(i>=di){s.arr+=D;s.dep+=D}});
+}
+// ---- loop ----
+function tick(){
+ if(G.paused||G.modal||G.ended)return;
+ G.now+=rate()*0.1;
+ const n=net();deliver(n);
+ const a=G.action;
+ if(a&&Date.now()>=G.ratWall&&!(a.net&&!n)){a.p+=0.1*((a.kind==='read'&&G.crowd)?.5:1);if(a.p>=a.dur)finish()}
+ if(G.mode==='platform')platTick();
+ else if(G.mode==='train')trainTick();
+ else if(G.mode==='walk'&&G.now>=G.walkUntil){
+  if(G.walkTo==='14 St'){G.mode='platform';G.station='14 St';G.stationSi=3;crowdCheck('14 St')}
+  else{G.arrival=G.walkUntil;return end()}
+ }
+ if(G.now>=HARD&&!G.ended){G.arrival=null;return end()}
+ render();
+}
+function platTick(){
+ const pres=present(),ids=new Set(pres.map(t=>t.id));
+ G.present.forEach(id=>{if(!ids.has(id))G.letGo.push(G.station)});G.present=ids;
+ const nw=pres.find(t=>!G.asked.has(t.id));
+ if(nw){G.asked.add(nw.id);const st=nw.stops.filter((s,i)=>i>nw.stops.findIndex(x=>x.name===G.station)).map(s=>s.name.replace(' (to 14 St 1/2/3)',''));
+  const warn=nw.type==='express'?'<br><b style="color:#ff8a7a">Does not stop at 116 St.</b> After 96 St it turns east to 110 St–Central Park North.':'';
+  popup('TRAIN ARRIVING · '+G.station,'<span class="bullet'+(nw.line==='L'?' L':'')+'">'+nw.line+'</span> '+tname(nw)+' is in the station',
+   'Next stops: '+st.slice(0,5).join(' · ')+(st.length>5?' …':'')+warn,'',[['Board',()=>board(nw.id),1],['Let it go',null]],[8,1]);}
+}
+function trainTick(){
+ const tr=G.train,p=tp(tr),s=tr.stops[p.i],key=tr.id+'|'+p.i+'|'+p.at;
+ if(key!==G.lastKey){G.lastKey=key;
+  if(p.at){
+   if(p.i===tr.stops.length-1)return terminal(tr);
+   if(G.crowd&&s.name==='72 St'){G.crowd=false;toast('A crowd gets off at 72 St. You can read again.',2500)}
+   if(ratCheck(s.name))return; if(crowdCheck(s.name))return;
+   if(tr.type!=='L'&&XSTOP.has(s.name)&&s.name!=='14 St'){
+    const is96=s.name==='96 St';
+    popup('DOORS OPEN · '+s.name,tr.type==='express'?(is96?'Last chance to switch to the 1':'Express stop'):'Express stop',
+     tr.type==='express'?(is96?'This express will <b>not</b> stop at 116 St. Get off now and wait across the platform for a 1 Local.':'You can get off here and cross the platform to a local — or stay on the express.'):'You can get off and cross the platform to an express (2/3). Remember: only the 1 stops at 116 St.',
+     '',[['Get off',alight,1],['Stay on',null]],[8,1])}
+  }}
+ const e=tr.ev;
+ if(e&&!e.shown){const go=(e.kind==='station'&&p.i===e.di&&p.at)||(e.kind==='tunnel'&&p.i===e.di&&!p.at&&G.now>=s.arr-e.D-60);
+  if(go){e.shown=true;G.slowUntil=e.kind==='station'?s.dep:s.arr;G.evs.push({line:tr.line,c:e.c,station:e.station,mins:Math.round(e.D/60),t:G.now});
+   const cnt=EV[e.station][e.c],rank=Object.values(EV).filter(v=>(v[e.c]||0)>cnt).length+1;
+   popup('SERVICE ALERT · '+tname(tr),'Train held · about '+Math.round(e.D/60)+' min','“'+EVTXT[e.c]+'”',
+    'Real data: in the past year MTA posted '+cnt+' “'+EVNAME[e.c]+'” alerts at '+e.station+' — #'+rank+' on this route.',[['OK',null,1]])}}
+}
+function terminal(tr){
+ if(tr.type==='L'){G.mode='walk';G.walkTo='14 St';G.walkUntil=G.now+240;G.train=null;popup('TRANSFER · 6 Av','Walk to the 1/2/3','The L ends its run here for you. Follow the passage to the 14 St 1/2/3 platform — about 4 minutes.','',[['Walk',null,1]])}
+ else if(tr.type==='local'){G.mode='walk';G.walkTo='Avery';G.walkUntil=G.now+360;G.train=null;G.stationSi=18;popup('ARRIVED · 116 St–Columbia','Walk to Avery Hall','About 6 minutes from the station to Avery Hall. Your phone works the whole way.','',[['Go',null,1]])}
+ else{G.overshoot=true;G.arrival=G.now+1200;G.train=null;G.mode='end';end()}
+}
+function ratCheck(name){const p=RAT[name];if(p&&!G.rat&&Math.random()<p){G.rat=name;popup('RAT!','A rat runs past your feet','You almost drop your phone.','Real data: 311 logged '+({'72 St':132,'96 St':94,'110 St–Cathedral Pkwy':87}[name]||'many')+' rat complaints within 400 m of '+name+' in the past year — among the most on this route.',[['Ew. OK.',null,1]]);return true}return false}
+function crowdCheck(name){if(!G.crowdDone&&(name==='Times Sq–42 St'||name==='14 St')&&Math.random()<.5){G.crowdDone=true;G.crowd=true;popup('RUSH','A huge crowd pushes in','You are squeezed against the door. Reading goes at half speed until 72 St.','Real data: Times Sq and 14 St are among the busiest stations in the system (MTA hourly ridership).',[['Squeeze in',null,1]]);return true}return false}
+function deliver(n){if(!n)return;G.queue=G.queue.filter(q=>{if(G.now<q.t)return true;
+ if(q.kind==='chat'){G.chat.push({text:q.text,t:G.now});G.unread.msg++;notify('Messages · Mia',q.text,'msg')}
+ else{G.quizDeadline=T(15,25);G.mail.unshift({from:'Prof. Rivera',sub:'Quiz deadline changed',text:q.text,t:G.now});G.unread.mail++;notify('Email · Prof. Rivera',q.text,'mail')}return false})}
+// ---- actions ----
+function board(id){const tr=trains.find(t=>t.id===id),i=tr.stops.findIndex(s=>s.name===G.station);
+ G.present.delete(id);roll(tr,i);if(G.prevLine&&G.prevLine!==tr.line)G.transfers++;if(tr.type==='express')G.rodeExpress=true;
+ G.prevLine=tr.line;G.mode='train';G.train=tr;G.lastKey='';render(true)}
+function alight(){if(G.mode!=='train')return;const p=tp(G.train);if(!p.at||p.i===G.train.stops.length-1)return;const s=G.train.stops[p.i];G.station=s.name;G.stationSi=s.si;G.mode='platform';G.train=null;G.present=new Set();G.crowd=false;render(true)}
+function skip(){const u=upcoming().filter(x=>x.s.arr>G.now);if(u.length)G.now=u[0].s.arr+1;render(true)}
+function start(kind,label,needNet){if(G.action)return;G.action={kind,label,dur:DUR[kind],p:0,net:needNet};if(!G.firstTask)G.firstTask=kind;if(needNet&&G.mode==='platform')G.platformNet++;render(true)}
+function finish(){const a=G.action;G.action=null;G.done.push({kind:a.kind,t:G.now});
+ if(a.kind==='download')G.dl=true;if(a.kind==='read')G.parts++;
+ if(a.kind==='submit'){G.submitted=true;G.submitAt=G.now}
+ if(a.kind==='send'){G.chat.push({text:G.draft,t:G.now,out:true});if(!G.replied){G.replied=true;G.sent=true}G.draft=null}
+ render(true)}
+let tt=null;function toast(s,ms){const e=$('toast');e.textContent=s;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),ms||3000)}
+let nt=null;function notify(from,text,app){const e=$('notif');e.innerHTML='<span class="x" id="nx">×</span><b>'+from+'</b>'+text;e.classList.add('on');e.onclick=()=>{e.classList.remove('on');openApp(app)};$('nx').onclick=ev=>{ev.stopPropagation();e.classList.remove('on')};clearTimeout(nt);nt=setTimeout(()=>e.classList.remove('on'),5000)}
+let popT=null;
+function popup(k,title,text,data,btns,timer){G.modal=true;const b=$('popBox');clearInterval(popT);
+ b.innerHTML='<div class="k">'+k+'</div><h3>'+title+'</h3><div>'+text+'</div>'+(data?'<div class="data">'+data+'</div>':'')+(timer?'<div class="tbar"><i id="popBar"></i></div><div class="tl" id="popTl"></div>':'')+'<div class="row">'+btns.map((x,i)=>'<button class="pix'+(x[2]?' go':'')+'" data-i="'+i+'">'+x[0]+'</button>').join('')+'</div>';
+ $('pop').style.display='flex';
+ const pick=i=>{clearInterval(popT);$('pop').style.display='none';G.modal=false;const f=btns[i][1];if(f)f();render(true)};
+ b.querySelectorAll('[data-i]').forEach(e=>e.onclick=()=>pick(+e.dataset.i));
+ if(timer){const t0=Date.now(),ms=timer[0]*1000;popT=setInterval(()=>{if(G.paused)return;const r=1-(Date.now()-t0)/ms;$('popBar').style.width=Math.max(0,r*100)+'%';$('popTl').textContent='Doors close in '+Math.max(0,Math.ceil(r*timer[0]))+' s — then: '+btns[timer[1]][0];if(r<=0)pick(timer[1])},100)}
+ render(true)}
+// ---- strip ----
+function drawStrip(){
+ const s=$('strip');s.querySelectorAll('.dot,.lab,.ln').forEach(e=>e.remove());
+ const x=i=>(3+i*94/18)+'%';
+ const ln=(a,b,c)=>{const d=document.createElement('div');d.className='ln';d.style.left=x(a);d.style.width=((b-a)*94/18)+'%';d.style.background=c;s.appendChild(d)};
+ ln(0,3,'#a7a9ac');ln(3,18,'#ee352e');
+ STRIP.forEach(([n,k],i)=>{const d=document.createElement('div');d.className='dot'+(k==='X'?' x':'')+(k==='D'?' dest':'');d.style.left=x(i);d.id='d'+i;s.appendChild(d);
+  const l=document.createElement('div');l.className='lab'+(k==='X'?' x':'');l.style.left=x(i);l.textContent=n;l.id='l'+i;s.appendChild(l)})}
+function stripState(){
+ let pos=G.stationSi,next=-1,exp=false;
+ if(G.mode==='train'){const tr=G.train,p=tp(tr),s=tr.stops[p.i];exp=tr.type==='express';
+  if(p.at){pos=s.si;next=p.i+1<tr.stops.length?tr.stops[p.i+1].si:-1}
+  else{const pr=tr.stops[p.i-1]||s,f=Math.max(0,Math.min(1,(G.now-pr.dep)/Math.max(1,s.arr-pr.dep)));pos=pr.si+(s.si-pr.si)*f;next=s.si}}
+ else if(G.mode==='walk'&&G.walkTo==='14 St')pos=3;
+ $('me').style.left=(3+Math.min(pos,18)*94/18)+'%';
+ for(let i=0;i<STRIP.length;i++){const dim=exp&&STRIP[i][1]!=='X'&&i>3;$('d'+i).classList.toggle('dim',dim);$('l'+i).classList.toggle('dim',dim);$('l'+i).classList.toggle('next',Math.round(next)===i&&!dim)}
+ $('stripNote').textContent=exp?'EXPRESS: stops only at big dots. After 96 St it turns east — switch to the 1 at 96 St!':'';
+}
+// ---- render ----
+function render(force){
+ const n=net(),onT=G.mode==='train',p=onT?tp(G.train):null,at=onT&&p.at;
+ $('ptime').textContent=hm(G.now);$('nosvc').style.display=n?'none':'flex';
+ const left=Math.ceil((DEADLINE-G.now)/60),e=eta();
+ $('clkT').innerHTML='<span style="font-size:28px;font-weight:700;color:'+(left>5?'#efe6d2':'#ff5a4e')+'">'+hm(G.now)+'</span> <span class="small">'+(left>0?'class at 3:30':'LATE')+'</span>';
+ $('clkB').style.width=Math.min(100,(G.now-START)/(DEADLINE-START)*100)+'%';$('clkB').style.background=left>5?'#62d26f':(left>0?'#f2b84b':'#ff6b5e');
+ let hud='';
+ if(G.mode==='platform')hud='Platform · '+G.station;else if(G.mode==='walk')hud=G.walkTo==='14 St'?'Transfer passage → 1/2/3':'Walking to Avery Hall';
+ else if(G.mode==='end')hud='Wrong 110th Street';else{const s=G.train.stops[p.i];hud=tname(G.train)+(at?' · Doors open at '+s.name:' · In tunnel · Next: '+s.name)}
+ $('hud').textContent=hud;
+ $('evdim').classList.toggle('on',G.now<G.slowUntil);
+ // stage
+ $('plat').style.display=onT?'none':'block';
+ ['car','pWoman','pMan','pHero','cool','view'].forEach(id=>$(id).style.visibility=onT?'visible':'hidden');
+ if(onT){const src=G.train.line==='L'?'carL.png':'car123.png';if(!$('car').src.endsWith(src))$('car').src=src;
+  $('cool').style.opacity=at?0:1;$('pCrowd').style.display=G.crowd?'block':'none';$('pHero').style.display=G.crowd?'none':'block';
+  const v=$('view'),c=at?'station':'tunnel';
+  if(v.dataset.c!==c||(at&&v.dataset.n!==G.train.stops[p.i].name)){v.dataset.c=c;v.className='ov pe'+(at?' station':'');
+   if(at){const nm=G.train.stops[p.i].name;v.dataset.n=nm;v.innerHTML=[12,60,88].map(l=>'<div class="sn" style="left:'+l+'%">'+nm+'</div>').join('')}
+   else{v.dataset.n='';v.innerHTML=[30,45,62].map((t,i)=>'<div class="streak" style="top:'+t+'%;animation-delay:'+(i*.15)+'s"></div>').join('')}}
+ } else {$('pCrowd').style.display='none';
+  $('platName').textContent=G.mode==='walk'?(G.walkTo==='14 St'?'→ 1 2 3 · 14 St':'116 St · Columbia University'):G.station;
+  const crowdP=CROWDED.has(G.station)&&G.mode==='platform';$('platCrowd').style.display=crowdP?'block':'none';$('platHero').style.display=crowdP?'none':'block';$('platMan').style.display=crowdP?'none':'block';
+  const pres=G.mode==='platform'?present():[],tb=$('trainband');
+  if(pres.length){tb.classList.add('on');$('tbB').textContent=pres[0].line;$('tbB').className='bullet'+(pres[0].line==='L'?' L':'')}else tb.classList.remove('on')}
+ const cd=$('cd');if(G.mode==='platform'){cd.style.display='block';cd.innerHTML='<div class="h">NEXT TRAINS · '+G.station+'</div>'+upcoming().map(u=>{const m=Math.max(0,Math.ceil((u.s.arr-G.now)/60));return (u.tr.line==='L'?'L to 8 Av':u.tr.line+' '+(u.tr.type==='express'?'Express':'Local'))+'&nbsp;&nbsp;'+(G.now>=u.s.arr?'NOW':m+' min')}).join('<br>')}else cd.style.display='none';
+ stripState();liveBits();
+ // bottom actions
+ const pres=G.mode==='platform'?present():[];
+ const akey=[G.modal,G.mode,G.station,G.train&&G.train.id,at,p&&p.i,pres.map(t=>t.id).join()].join('|');
+ if(force||akey!==G.ak){G.ak=akey;let h='';
+  if(G.modal)h='<div class="msg">Decide in the pop-up ↑</div>';
+  else if(onT){const canOff=at&&p.i<G.train.stops.length-1;h='<button class="pix'+(canOff?' live':'')+'" id="aOff"'+(canOff?'':' disabled')+'>'+(canOff?'▼ GET OFF at '+G.train.stops[p.i].name:(at?'Last stop':'In tunnel · doors closed'))+'</button>'}
+  else if(G.mode==='platform'){h=pres.map(tr=>'<button class="pix live" data-b="'+tr.id+'"><span class="bullet'+(tr.line==='L'?' L':'')+'">'+tr.line+'</span>BOARD '+tname(tr)+'</button>').join('')+'<button class="pix soft" id="aSkip">Wait for next train ▸▸</button>'}
+  else h='<div class="msg">'+(G.mode==='walk'?'Walking… (phone has signal)':'')+'</div>';
+  $('acts').innerHTML=h;if($('aOff'))$('aOff').onclick=alight;if($('aSkip'))$('aSkip').onclick=skip;
+  $('acts').querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>board(b.dataset.b))}
+ // phone
+ const ansN=G.answers.filter(x=>x!==null).length,bd=(id,v)=>{$(id).style.display=v?'block':'none';$(id).textContent=v};
+ bd('bMsg',G.unread.msg||(G.sent?0:1));bd('bMail',G.unread.mail);bd('bCanvas',(3-G.parts)+(3-ansN)+(G.submitted?0:1));
+ bd('bNotes',(G.parts<3?1:0)+(G.submitted?0:1)+(G.sent?0:1));$('bMaps').style.display=G.evs.length>G.mapsSeen?'block':'none';
+ const key=[G.app,G.dl,G.parts,G.answers.join(),G.submitted,G.draft,G.sent,G.chat.length,G.mail.length,!!G.action,G.evs.length,G.reported,n].join('|');
+ if(force||key!==G.rk){G.rk=key;drawApp()}
+}
+function pct(){const a=G.action;return a?Math.min(1,a.p/a.dur):0}
+function rp(){return (G.parts+(G.action&&G.action.kind==='read'?pct():0))/3}
+function liveBits(){const a=G.action;
+ document.querySelectorAll('[data-live="read"]').forEach(e=>e.style.width=(rp()*100)+'%');
+ document.querySelectorAll('[data-live="act"]').forEach(e=>e.style.width=(pct()*100)+'%');
+ const st=$('actState');if(st&&a)st.textContent=Date.now()<G.ratWall?'paused':(a.net&&!net()?'no signal — resumes at next stop':(a.kind==='read'&&G.crowd?'too crowded, slow…':'in progress…'));
+ const m=$('mapEta');if(m)m.textContent=hm(eta())}
+function actBox(){const a=G.action;return a?'<div class="blk" style="background:#fff3d6">'+a.label+' · <span id="actState"></span><div class="pb"><i data-live="act"></i></div></div>':''}
+function openApp(a){G.app=a;if(a==='msg')G.unread.msg=0;if(a==='mail')G.unread.mail=0;if(a==='maps'){G.openedMaps=true;G.mapsSeen=G.evs.length}render(true)}
+function drawApp(){
+ const ap=$('app');if(!G.app){ap.style.display='none';return}ap.style.display='flex';
+ const busy=!!G.action,ans=G.answers.filter(x=>x!==null).length;let t='',h=actBox();
+ if(G.app==='maps'){t='Google Maps';const o=mapOptions();
+  h+='<div class="blk"><h4>1 Av → Avery Hall</h4><span class="mut">Live · updated '+hm(G.now)+'</span></div>';
+  const BB=l=>'<span class="bullet'+(l==='L'?' L':'')+'" style="font-size:10px">'+l+'</span>';
+  o.forEach((x,i)=>{h+='<div class="blk"'+(i===0?' style="border-color:#2a6cd6;border-width:3px"':'')+'><div style="display:flex;justify-content:space-between;align-items:center"><span>'+x.lines.map(BB).join(' ➜ ')+'</span><b style="font-size:1.5em">'+hm(x.arr)+'</b></div>'+(i===0?'<div style="color:#2a6cd6;font-weight:700">Fastest</div>':'')+
+   '<div style="margin:5px 0 0 6px;border-left:3px solid #2a3546;padding-left:8px">'+x.stops.map(st=>'<div><b>'+st[0]+'</b>'+(st[1]?' <span class="mut">· '+st[1]+'</span>':'')+'</div>').join('<div class="mut" style="font-size:.8em">│</div>')+'</div></div>'});
+  if(G.evs.length){const e=G.evs[G.evs.length-1];h+='<div class="alert"><b>Delay on your trip</b><br>'+e.station+': '+EVNAME[e.c]+' (~'+e.mins+' min)<br>'+(G.reported?'Thanks! You and '+(23+G.reported*7)+' riders reported delays today.':'<button class="pbtn" id="rep"'+(net()?'':' disabled')+'>Report this delay</button>')+'</div>'}
+  else h+='<div class="mut">No delays reported on your route.</div>'}
+ else if(G.app==='notes'){t='Notes';
+  h+='<div class="blk"><h4>Before 3:30 class</h4>☐ Check route in Google Maps '+(G.openedMaps?'✓':'')+'<br>☐ Read the reading (Canvas)<div class="pb'+(G.parts===3?' ok':'')+'"><i data-live="read" style="width:'+(rp()*100)+'%"></i></div>☐ Quiz — answer & submit (Canvas)'+(G.quizDeadline?' <b style="color:#c0392b">due 3:25</b>':'')+'<div class="pb'+(G.submitted?' ok':'')+'"><i style="width:'+(G.submitted?100:ans/3*80)+'%"></i></div>☐ Reply to Mia (Messages)<div class="pb'+(G.sent?' ok':'')+'"><i style="width:'+(G.sent?100:(G.draft?50:0))+'%"></i></div></div><div class="mut">Downloading, submitting and sending need signal. Reading and answering work in the tunnel.</div>'}
+ else if(G.app==='canvas'){t='Canvas · Urban Studies';
+  if(!G.dl)h+='<div class="blk"><h4>Today\'s reading + quiz</h4>Read a part, answer its question — 3 rounds, then submit. Download once; it works offline.<button class="pbtn" data-do="dl"'+(busy?' disabled':'')+'>Download (needs signal)</button></div>';
+  else{h+='<div class="blk"><b>Read '+G.parts+'/3 · Answered '+ans+'/3</b>'+(G.quizDeadline?' · <span style="color:#c0392b">due 3:25</span>':'')+'<div class="pb'+(G.submitted?' ok':'')+'"><i style="width:'+((G.parts+ans+(G.submitted?1:0))/7*100)+'%"></i></div></div>';
+   for(let i=0;i<3;i++){
+    if(i<G.parts){const q=QUIZ[i];h+='<div class="blk"><b>Part '+(i+1)+'</b><br>'+READING[i]+'</div><div class="blk" style="border-color:#e08a1e"><b>Q'+(i+1)+'.</b> '+q[0]+q[1].map((o,oi)=>'<button class="opt'+(G.answers[i]===oi?' sel':'')+'" data-q="'+i+'" data-o="'+oi+'"'+(G.submitted?' disabled':'')+'>'+o+'</button>').join('')+'</div>'}
+    else if(i===G.parts){const can=ans>=G.parts;h+='<button class="pbtn" data-do="rd"'+(busy||!can?' disabled':'')+'>'+(can?'Read part '+(i+1):'Answer Q'+G.parts+' first')+'</button>'}}
+   if(G.parts===3)h+=G.submitted?'<div class="mut">Quiz submitted '+hm(G.submitAt)+'.</div>':'<button class="pbtn" data-do="sb"'+(busy||ans<3?' disabled':'')+'>Submit quiz (needs signal)</button>'}}
+ else if(G.app==='msg'){t='Messages · Mia';
+  G.chat.forEach(m=>{h+='<div class="bub'+(m.out?' out':'')+'">'+m.text+'<div class="m">'+hm(m.t)+'</div></div>'});
+  if(G.draft)h+='<div class="bub out" style="opacity:.6">'+G.draft+'<div class="m">'+(net()?'sending…':'waiting for signal…')+'</div></div>';
+  else{const o=!G.replied?['Sure, I\'ll go first','Can you go first? I might be late','On the train, will update you']:(!G.chat[G.chat.length-1].out?['Almost there','Still on the way…','Train stopped again']:[]);
+   h+='<div>'+o.map(x=>'<span class="chip" data-r="'+x.replace(/"/g,'&quot;')+'">'+x+'</span>').join('')+'</div>'}}
+ else if(G.app==='mail'){t='Email';G.mail.forEach(m=>{h+='<div class="blk"><b>'+m.from+'</b> · <span class="mut">'+hm(m.t)+'</span><br><b>'+m.sub+'</b><br>'+m.text+'</div>'})}
+ $('appT').textContent=t;$('appB').innerHTML=h;
+ const D={dl:()=>start('download','Downloading',true),rd:()=>start('read','Reading part '+(G.parts+1),false),sb:()=>{if(G.partsAtQuiz===null)G.partsAtQuiz=G.parts;start('submit','Submitting quiz',true)}};
+ $('appB').querySelectorAll('[data-do]').forEach(e=>e.onclick=D[e.dataset.do]);
+ $('appB').querySelectorAll('[data-q]').forEach(e=>e.onclick=()=>{if(G.partsAtQuiz===null)G.partsAtQuiz=G.parts;if(!G.firstTask)G.firstTask='quiz';G.answers[+e.dataset.q]=+e.dataset.o;render(true)});
+ $('appB').querySelectorAll('[data-r]').forEach(e=>e.onclick=()=>{if(G.action)return toast('One thing at a time.',1500);G.draft=e.dataset.r;start('send','Sending message',true)});
+ if($('rep'))$('rep').onclick=()=>{G.reported++;render(true)};
+}
+function mapOptions(){
+ if(G.mode==='end')return [];
+ if(G.mode==='walk'&&G.walkTo==='Avery')return [{arr:G.walkUntil,lines:[],stops:[['Avery Hall','walking']]}];
+ if(G.mode==='train'&&G.train.type==='local')return [{arr:stopOf(G.train,'116 St–Columbia').arr+360,lines:['1'],stops:[['Now: 1 Local',''],['116 St','walk 6 min']]}];
+ if(G.mode==='train'&&G.train.type==='express'){const i96=G.train.stops.findIndex(s=>s.name==='96 St'),p=tp(G.train);
+  if(p.i>i96)return [{arr:stopOf(G.train,'110 St–Central Park North').arr+1200,lines:[G.train.line],stops:[['110 St–CPN','missed 96 St'],['Avery Hall','walk 20 min']]}];
+  const l2=nextAt('local','96 St',G.train.stops[i96].arr+30);return [{arr:l2?stopOf(l2.tr,'116 St–Columbia').arr+360:Infinity,lines:[G.train.line,'1'],stops:[['Now: '+G.train.line+' Express',''],['96 St','switch to 1'],['116 St','walk 6 min']]}]}
+ let S,t,pre=[],pl=[];const Lst=['1 Av','3 Av','14 St–Union Sq'];
+ if(G.mode==='walk'){S='14 St';t=G.walkUntil;pre=[['14 St','walking to 1/2/3']]}
+ else if(G.mode==='train'&&G.train.type==='L'){S='14 St';t=G.train.stops[3].arr+240;pre=[['Now: L',''],['14 St','walk 4 min']];pl=['L']}
+ else if(Lst.includes(G.station)){const nL=nextAt('L',G.station,G.now);S='14 St';t=nL?nL.tr.stops[3].arr+240:Infinity;pre=[[G.station,'L at '+(nL?hm(nL.s.dep):'—')],['14 St','walk 4 min']];pl=['L']}
+ else{S=G.station;t=G.now;pre=[[S,'']]}
+ const out=[],l=nextAt('local',S,t);
+ if(l)out.push({arr:stopOf(l.tr,'116 St–Columbia').arr+360,lines:pl.concat(['1']),stops:pre.slice(0,-1).concat([[pre[pre.length-1][0],(pre[pre.length-1][1]?pre[pre.length-1][1]+' · ':'')+'1 at '+hm(l.s.dep)],['116 St','walk 6 min']])});
+ if(XSTOP.has(S)&&S!=='96 St'){const x=nextAt('express',S,t);if(x){const l2=nextAt('local','96 St',stopOf(x.tr,'96 St').arr+30);if(l2)out.push({arr:stopOf(l2.tr,'116 St–Columbia').arr+360,lines:pl.concat([x.tr.line,'1']),stops:pre.slice(0,-1).concat([[pre[pre.length-1][0],(pre[pre.length-1][1]?pre[pre.length-1][1]+' · ':'')+x.tr.line+' at '+hm(x.s.dep)],['96 St','switch to 1 at '+hm(l2.s.dep)],['116 St','walk 6 min']])})}}
+ return out.sort((a,b)=>a.arr-b.arr)}
+function n2(){return net()}
+// ---- intro + coach ----
+function intro(){const f=$('full');f.style.display='flex';
+ f.innerHTML='<div class="c"><div class="small">WEDNESDAY · 2:50 PM · 1 AV STATION (L)</div><h1>You\'re a Columbia student. Class starts at 3:30.</h1>'+
+ '<p>Get from the East Village to <b>Avery Hall</b> on time — and finish the reading, submit the quiz, and answer your groupmate Mia on the way.</p><p>Your phone only has signal in stations. Start by checking your route in <b>Google Maps</b>.</p>'+
+ '<button class="go2 pix" id="how">Show me how to play</button><button class="go2 pix alt" id="skipT">Skip tutorial</button></div>';
+ $('how').onclick=()=>{f.style.display='none';coach(0)};$('skipT').onclick=()=>{f.style.display='none';begin()}}
+function begin(){openApp('maps');G.paused=false;$('pauseBtn').textContent='❚❚ PAUSE';$('pauseBtn').classList.remove('paused')}
+const STEPS=[
+ {el:'phoneWrap',k:'1 / 6 · YOUR PHONE',t:'Start with <b>Google Maps</b>: it shows your route, how often each train runs, and a live ETA. You can report delays there too. <b>Notes</b> is your to-do list; <b>Canvas</b> has the reading and quiz; <b>Messages</b> and <b>Email</b> will ping you.'},
+ {el:'strip',k:'2 / 6 · ROUTE MAP',t:'The yellow arrow is you. Big dots are express stops; the blue dot is 116 St–Columbia. On an express, the stops it skips go dark.'},
+ {el:'cd',k:'3 / 6 · NEXT TRAINS',t:'On a platform, this board shows the next trains. When one arrives, the game pauses and asks: board or let it go?'},
+ {el:'acts',k:'4 / 6 · ACTIONS',t:'Board, wait for the next train, or GET OFF are all down here. GET OFF lights up whenever the doors open.'},
+ {el:'pauseBtn',k:'5 / 6 · PAUSE',t:'Pause any time. Delays, rats and crowds also pause the game with a pop-up so you can read what happened before deciding.'},
+ {el:'clockBox',k:'6 / 6 · TIME',t:'Minutes left before class and your live ETA. Each ride has a 30% chance of a delay — where and what come from a year of real MTA service alerts.'}];
+function coach(i){
+ const c=$('coach');c.style.display='block';const s=STEPS[i],g=$('game').getBoundingClientRect(),e=$(s.el);
+ if(s.el==='cd')e.style.display='block';const r=e.getBoundingClientRect();
+ const h=$('hole');h.style.left=(r.left-g.left-4)+'px';h.style.top=(r.top-g.top-4)+'px';h.style.width=(r.width+8)+'px';h.style.height=(r.height+8)+'px';
+ const b=$('bub');b.innerHTML='<div class="k">'+s.k+'</div>'+s.t+'<div class="row"><button id="cSkip">Skip</button><span>'+(i>0?'<button id="cBack">Back</button> ':'')+'<button class="hotb" id="cNext">'+(i===STEPS.length-1?'Start the commute':'Next')+'</button></span></div>';
+ let bx=r.left-g.left,by=r.top-g.top+r.height+14;
+ if(by+200>g.height)by=Math.max(8,r.top-g.top-210);
+ if(s.el==='phoneWrap'){bx=r.left-g.left-326;by=r.top-g.top+40}
+ bx=Math.min(Math.max(8,bx),g.width-322);b.style.left=bx+'px';b.style.top=by+'px';
+ const done=()=>{c.style.display='none';begin()};
+ $('cSkip').onclick=done;$('cNext').onclick=()=>i===STEPS.length-1?done():coach(i+1);if($('cBack'))$('cBack').onclick=()=>coach(i-1);
+}
+function end(){
+ G.ended=true;render(true);
+ const arr=G.arrival,late=arr===null||arr>DEADLINE,lm=arr?Math.ceil((arr-DEADLINE)/60):null;
+ const correct=G.answers.filter((a,i)=>a===QUIZ[i][2]).length,subOK=G.submitted&&!(G.quizDeadline&&G.submitAt>G.quizDeadline),answered=G.answers.every(a=>a!==null);
+ let e;
+ if(G.overshoot)e=['Standing on Lenox Ave, staring at a map','You made it to 110th Street — just the wrong one.'];
+ else if(late&&subOK&&correct===3)e=['Standing outside the classroom door','You knew every answer. You just missed the class.'];
+ else if(late)e=['The whole class turns as you open the door','You spent the entire commute… completing a commute.'];
+ else if(answered&&!subOK)e=['Your phone, stuck on the submit page','Your answers live on your phone. Your grade lives in your imagination.'];
+ else if(!G.sent)e=['Mia slides the laptop over','“Okay then — you\'re presenting first.”'];
+ else if(G.parts<3&&correct<2)e=['Phone under the desk','The professor is about to call on you. You\'re speed-summarizing with ChatGPT.'];
+ else if(G.parts===3&&subOK&&correct===3)e=['Calmly flipping through your notes','You didn\'t just show up — your brain did too.'];
+ else e=['Catching your breath in your seat','You made it. The rest is up to luck.'];
+ const tot=G.done.length,cut=START+((arr||HARD)-START)*.75,ld=G.done.filter(d=>d.t>=cut).length,ev=[];
+ if(G.letGo.length&&G.platformNet)ev.push(['Platform Office Worker','Let '+G.letGo.length+' train(s) go at '+G.letGo[0]+' to use the signal']);
+ if(answered&&correct<=1)ev.push(['Confident Guesser','Answered every question, got '+correct+'/3 right']);
+ if(G.firstTask==='send')ev.push(['Social First','Replying to Mia was the very first thing you did']);
+ if(tot>=2&&ld/tot>=.5)ev.push(['Last-Minute Sprinter',ld+' of '+tot+' tasks done in the last quarter of the trip']);
+ const P={'Platform Office Worker':'The subway platform is your coworking space.','Confident Guesser':'No question left unanswered.','Social First':'Everyone knows you\'re on your way — except your homework.','Last-Minute Sprinter':'Your potential shows up one minute before the deadline.','Steady Planner':'New York tried to throw you off. You already had a plan.'};
+ const type=ev.length?ev[0][0]:'Steady Planner',facts=ev.map(x=>x[1]);facts.push(G.rodeExpress?'Rode an express, '+G.transfers+' transfer(s)':'Never touched an express');
+ const evl=G.evs.map(x=>{const cnt=(EV[x.station]||{})[x.c]||0,rank=Object.values(EV).filter(v=>(v[x.c]||0)>cnt).length+1;
+  return (x.line==='L'?'L train':x.line+' train')+' at '+x.station+': '+EVNAME[x.c]+', about '+x.mins+' min lost. <span class="small">('+cnt+' such alerts there last year, #'+rank+' on this route)</span>'});
+ const f=$('full');f.style.display='flex';
+ f.innerHTML='<div class="c"><h1>'+e[1]+'</h1><div class="small">Scene: '+e[0]+'</div>'+
+ '<h2>GOOGLE SAID vs WHAT HAPPENED</h2><div class="cmp"><div><div class="small">Google estimate</div><div class="n">3:28</div></div><div><div class="small">You walked in at</div><div class="n '+(late?'late':'ontime')+'">'+(arr?hm(arr):'—')+'</div><div class="small">'+(arr?(late?lm+' min late':'On time'):'Still not there at 3:50')+'</div></div></div>'+
+ '<h2>TASKS</h2><div>Reading '+G.parts+'/3 · Quiz '+(G.submitted?(subOK?'submitted':'submitted late'):(answered?'answered, not submitted':'unfinished'))+', '+correct+'/3 correct · Mia '+(G.sent?'replied':'no reply')+(G.reported?' · You reported a delay':'')+'</div>'+
+ '<h2>ON THE WAY</h2><div>'+(evl.length?evl.join('<br>'):'No major delay this time.')+(G.rat?'<br>A rat at '+G.rat+'.':'')+(G.crowdDone?'<br>Squeezed by a crowd.':'')+'</div>'+
+ '<h2>YOUR COMMUTE PERSONALITY</h2><div style="font-size:18px"><b>'+type+'</b> — '+P[type]+'</div><div class="small">'+facts.slice(0,2).join(' · ')+'</div>'+
+ '<p class="small" style="margin-top:12px">Each ride in the game has a 30% chance of a major delay (turned up to make it playable). In reality about 11% of 1 train trips and 16% of 2 train trips run 5+ minutes late. Locations and types come from real MTA service alerts.</p>'+
+ '<button class="go2 pix" id="again">Ride again</button></div>';
+ $('again').onclick=newGame}
+document.querySelectorAll('.hot').forEach(h=>h.onclick=()=>openApp(h.dataset.app));
+$('bk').onclick=()=>{G.app=null;render(true)};
+$('pauseBtn').onclick=()=>{if(G.ended||G.modal)return;G.paused=!G.paused;$('pauseBtn').textContent=G.paused?'▶ RESUME':'❚❚ PAUSE';$('pauseBtn').classList.toggle('paused',G.paused)};
+newGame();setInterval(tick,100);
+</script>
+</body>
+</html>
